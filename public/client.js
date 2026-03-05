@@ -1,3 +1,5 @@
+
+
 /**
  * client.js — منطق العميل للعبة رواق
  * يدير: الاتصال بالخادم، واجهة المضيف والاعب، المؤقتات، والتأثيرات
@@ -266,6 +268,27 @@ socket.on('new_question', ({ index, total, text, options, time }) => {
     document.getElementById('player-q-index').textContent = `سؤال ${index + 1}/${total}`;
     document.getElementById('player-score-display').textContent = `نقاطك: ${state.score}`;
     document.getElementById('answer-feedback').classList.add('hidden');
+
+    // إظهار نص السؤال للاعب
+    let qTextEl = document.getElementById('player-question-text');
+    if (!qTextEl) {
+      qTextEl = document.createElement('div');
+      qTextEl.id = 'player-question-text';
+      qTextEl.style.cssText = `
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.25rem 1.5rem;
+        margin: 0 1.5rem;
+        text-align: center;
+        font-size: clamp(1rem, 3vw, 1.3rem);
+        font-weight: 700;
+        line-height: 1.6;
+      `;
+      const answerButtons = document.getElementById('player-buttons');
+      answerButtons.parentNode.insertBefore(qTextEl, answerButtons);
+    }
+    qTextEl.textContent = text;
 
     const shapes = ['▲ ', '■ ', '● ', '★ '];
     const btns = document.querySelectorAll('.answer-btn');
