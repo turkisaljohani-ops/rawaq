@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>رواق — لعبة الأسئلة الجماعية</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ════════════════════════════════════════════
+       الشاشة الرئيسية — الدخول
+  ════════════════════════════════════════════ -->
+  <div id="screen-home" class="screen active">
+    <div class="home-bg"></div>
+    <div class="home-content">
+      <div class="logo-wrap">
+        <div class="logo-icon">رو</div>
+        <h1 class="logo-text">رواق</h1>
+        <p class="logo-sub">لعبة الأسئلة الجماعية</p>
+      </div>
+
+      <div class="home-cards">
+        <button class="card-btn card-host" onclick="showScreen('screen-create')">
+          <span class="card-icon">🎯</span>
+          <span class="card-title">أنشئ غرفة</span>
+          <span class="card-desc">كن المضيف وأدر اللعبة</span>
+        </button>
+        <button class="card-btn card-join" onclick="showScreen('screen-join')">
+          <span class="card-icon">🎮</span>
+          <span class="card-title">انضم للعبة</span>
+          <span class="card-desc">أدخل الرمز وانضم للمتعة</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       شاشة إنشاء الغرفة
+  ════════════════════════════════════════════ -->
+  <div id="screen-create" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showScreen('screen-home')">← رجوع</button>
+      <h2>إنشاء غرفة جديدة</h2>
+    </div>
+    <div class="form-card">
+      <div class="input-group">
+        <label>اسمك كمضيف</label>
+        <input type="text" id="host-name" placeholder="مثال: أحمد" maxlength="20" />
+      </div>
+      <button class="btn-primary" onclick="createRoom()">
+        <span>🚀 إنشاء الغرفة</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       شاشة الانضمام
+  ════════════════════════════════════════════ -->
+  <div id="screen-join" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showScreen('screen-home')">← رجوع</button>
+      <h2>انضم للعبة</h2>
+    </div>
+    <div class="form-card">
+      <div class="input-group">
+        <label>رمز الغرفة (PIN)</label>
+        <input type="text" id="join-pin" placeholder="123456" maxlength="6" inputmode="numeric" />
+      </div>
+      <div class="input-group">
+        <label>اسمك</label>
+        <input type="text" id="player-name" placeholder="مثال: سارة" maxlength="20" />
+      </div>
+      <button class="btn-primary" onclick="joinRoom()">
+        <span>✅ انضم الآن</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       Lobby — انتظار بدء اللعبة
+  ════════════════════════════════════════════ -->
+  <div id="screen-lobby" class="screen">
+    <div class="lobby-top">
+      <div class="pin-display">
+        <span class="pin-label">رمز الغرفة</span>
+        <span class="pin-number" id="lobby-pin">------</span>
+        <button class="copy-btn" onclick="copyPin()">📋 نسخ</button>
+      </div>
+      <div class="share-link-wrap">
+        <span class="share-label">رابط المشاركة:</span>
+        <span class="share-link" id="share-link"></span>
+      </div>
+    </div>
+
+    <div class="lobby-players">
+      <h3>اللاعبون <span id="player-count" class="count-badge">0</span></h3>
+      <div id="players-list" class="players-grid"></div>
+    </div>
+
+    <div id="host-controls" class="host-controls hidden">
+      <button class="btn-start" onclick="startGame()" id="start-btn" disabled>
+        انتظار اللاعبين...
+      </button>
+    </div>
+
+    <div id="player-waiting" class="player-waiting hidden">
+      <div class="waiting-dots">
+        <span></span><span></span><span></span>
+      </div>
+      <p>في انتظار بدء اللعبة...</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       شاشة السؤال — المضيف
+  ════════════════════════════════════════════ -->
+  <div id="screen-host-question" class="screen">
+    <div class="question-header">
+      <div class="q-meta">
+        <span id="host-q-index" class="q-num">1/5</span>
+        <div class="timer-wrap">
+          <div class="timer-ring">
+            <svg viewBox="0 0 60 60">
+              <circle cx="30" cy="30" r="26" class="timer-bg"/>
+              <circle cx="30" cy="30" r="26" class="timer-fill" id="host-timer-circle"/>
+            </svg>
+            <span id="host-timer-text" class="timer-text">15</span>
+          </div>
+        </div>
+      </div>
+      <div id="host-answer-count" class="answer-count">أجاب 0 / 0</div>
+    </div>
+
+    <div class="question-body">
+      <h2 id="host-question-text" class="q-text"></h2>
+    </div>
+
+    <div class="host-options-grid" id="host-options"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       شاشة السؤال — اللاعب
+  ════════════════════════════════════════════ -->
+  <div id="screen-player-question" class="screen">
+    <div class="player-q-header">
+      <div class="player-progress">
+        <span id="player-q-index">سؤال 1/5</span>
+        <div class="timer-wrap small">
+          <div class="timer-ring">
+            <svg viewBox="0 0 60 60">
+              <circle cx="30" cy="30" r="26" class="timer-bg"/>
+              <circle cx="30" cy="30" r="26" class="timer-fill" id="player-timer-circle"/>
+            </svg>
+            <span id="player-timer-text" class="timer-text">15</span>
+          </div>
+        </div>
+      </div>
+      <div id="player-score-display" class="score-display">نقاطك: 0</div>
+    </div>
+
+    <div id="player-buttons" class="answer-buttons">
+      <button class="answer-btn color-0" onclick="submitAnswer(0)"></button>
+      <button class="answer-btn color-1" onclick="submitAnswer(1)"></button>
+      <button class="answer-btn color-2" onclick="submitAnswer(2)"></button>
+      <button class="answer-btn color-3" onclick="submitAnswer(3)"></button>
+    </div>
+
+    <div id="answer-feedback" class="answer-feedback hidden">
+      <div class="feedback-icon" id="feedback-icon"></div>
+      <div class="feedback-text" id="feedback-text"></div>
+      <div class="feedback-points" id="feedback-points"></div>
+      <div class="feedback-streak" id="feedback-streak"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       Leaderboard بعد كل سؤال
+  ════════════════════════════════════════════ -->
+  <div id="screen-leaderboard" class="screen">
+    <h2 class="lb-title">🏆 المتصدرون</h2>
+    <div id="leaderboard-list" class="leaderboard-list"></div>
+    <div class="next-hint">السؤال التالي خلال <span id="next-countdown">5</span> ثوانٍ</div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       شاشة النهاية
+  ════════════════════════════════════════════ -->
+  <div id="screen-end" class="screen">
+    <div class="end-bg"></div>
+    <div class="end-content">
+      <h2 class="end-title">🎉 انتهت اللعبة!</h2>
+      <div id="winners-podium" class="podium"></div>
+      <button class="btn-primary" onclick="showScreen('screen-home')" style="margin-top:2rem">
+        🏠 الصفحة الرئيسية
+      </button>
+    </div>
+
+    <!-- تأثير الاحتفال -->
+    <canvas id="confetti-canvas"></canvas>
+  </div>
+
+  <!-- ── Toast للإشعارات ─────────────────────────── -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
