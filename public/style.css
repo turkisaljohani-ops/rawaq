@@ -469,3 +469,110 @@ input:focus { outline: none; border-color: var(--primary); }
   .answer-btn        { min-height: 75px; font-size: .9rem; }
   .answer-buttons    { gap: .5rem; padding: .75rem 1rem; }
 }
+
+/* ══ حقوق الملكية ══ */
+.copyright {
+  color: var(--muted);
+  font-size: .8rem;
+  text-align: center;
+  padding: .5rem;
+  letter-spacing: 1px;
+}
+.dev-name {
+  color: var(--primary2);
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+/* ══ الفيدباك ══ */
+.feedback-intro {
+  color: var(--muted);
+  font-size: .95rem;
+  text-align: center;
+  line-height: 1.6;
+}
+
+textarea {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 1rem;
+  padding: .85rem 1rem;
+  resize: vertical;
+  width: 100%;
+  direction: rtl;
+  transition: border-color .2s;
+  min-height: 100px;
+}
+textarea:focus { outline: none; border-color: var(--primary); }
+
+.star-rating {
+  display: flex;
+  gap: .5rem;
+  font-size: 2rem;
+  cursor: pointer;
+  justify-content: center;
+  padding: .5rem 0;
+}
+.star {
+  transition: transform .15s;
+  filter: grayscale(1);
+  opacity: .5;
+}
+.star.active {
+  filter: grayscale(0);
+  opacity: 1;
+  transform: scale(1.15);
+}
+.star:hover { transform: scale(1.2); }
+
+.btn-skip {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: .95rem;
+  padding: .75rem;
+  cursor: pointer;
+  width: 100%;
+  transition: color .2s, border-color .2s;
+}
+.btn-skip:hover { color: var(--text); border-color: var(--muted); }
+
+.end-btns {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  width: 100%;
+  margin-top: 2rem;
+}
+
+/* بطاقات الفيدباك المحفوظة */
+.feedback-cards {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 1rem;
+}
+.feedback-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem;
+  animation: popIn .3s ease;
+}
+.feedback-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .5rem;
+}
+.feedback-card-name  { font-weight: 700; font-size: .9rem; }
+.feedback-card-stars { font-size: .9rem; }
+.feedback-card-text  { color: var(--muted); font-size: .88rem; line-height: 1.5; }
