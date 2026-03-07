@@ -39,6 +39,10 @@
           </div>
         </button>
       </div>
+
+      <div class="copyright">
+        Developed by <span class="dev-name">LMMATNA</span> ©2026
+      </div>
     </div>
   </div>
 
@@ -184,9 +188,43 @@
     <div class="end-content">
       <h2 class="end-title">🎉 انتهت اللعبة!</h2>
       <div id="winners-podium" class="podium"></div>
-      <button class="btn-primary" onclick="showScreen('screen-home')" style="margin-top:2rem">🏠 الصفحة الرئيسية</button>
+      <div class="end-btns">
+        <button class="btn-primary" onclick="showScreen('screen-feedback')">💬 شارك رأيك</button>
+        <button class="btn-skip" onclick="showScreen('screen-home')">🏠 الصفحة الرئيسية</button>
+      </div>
     </div>
     <canvas id="confetti-canvas"></canvas>
+  </div>
+
+  <!-- ══ شاشة الفيدباك ══ -->
+  <div id="screen-feedback" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showScreen('screen-end')">← رجوع</button>
+      <h2>💬 شاركنا رأيك</h2>
+    </div>
+    <div class="form-card">
+      <p class="feedback-intro">ساعدنا في تطوير رواق بملاحظاتك واقتراحاتك!</p>
+      <div class="input-group">
+        <label>اسمك (اختياري)</label>
+        <input type="text" id="feedback-name" placeholder="مثال: أحمد" maxlength="30" />
+      </div>
+      <div class="input-group">
+        <label>تقييمك للعبة</label>
+        <div class="star-rating" id="star-rating">
+          <span class="star" onclick="setRating(1)">⭐</span>
+          <span class="star" onclick="setRating(2)">⭐</span>
+          <span class="star" onclick="setRating(3)">⭐</span>
+          <span class="star" onclick="setRating(4)">⭐</span>
+          <span class="star" onclick="setRating(5)">⭐</span>
+        </div>
+      </div>
+      <div class="input-group">
+        <label>رأيك واقتراحاتك</label>
+        <textarea id="feedback-text-input" placeholder="ما الذي أعجبك؟ ما الذي تريد تحسينه؟" rows="4"></textarea>
+      </div>
+      <button class="btn-primary" onclick="submitFeedback()">📤 إرسال الرأي</button>
+      <button class="btn-skip" onclick="showScreen('screen-home')">تخطي ← الصفحة الرئيسية</button>
+    </div>
   </div>
 
   <div id="toast" class="toast hidden"></div>
