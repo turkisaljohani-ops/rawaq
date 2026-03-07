@@ -212,7 +212,17 @@ io.on('connection', (socket) => {
     room.answeredCount = 0;
     room.questionStartTime = Date.now();
     Object.values(room.players).forEach(p => { p.answered = false; p.lastAnswer = null; });
-    io.to(pin).emit('new_question', { index: room.currentQ, total: room.questions.length, text: q.text, options: q.options, time: q.time });
+
+    // خلط الإجابات عشوائياً في كل سؤال
+    const indices = [0,1,2,3].sort(() => Math.random() - 0.5);
+    const shuffledOptions = indices.map(i => q.options[i]);
+    const newCorrect = indices.indexOf(q.correct);
+    room.currentCorrect = newCorrect;
+
+    io.to(pin).emit('new_question', {
+      index: room.currentQ, total: room.questions.length,
+      text: q.text, options: shuffledOptions, time: q.time
+    });
     if (room.timer) clearTimeout(room.timer);
     room.timer = setTimeout(() => { if (room.state === 'question') showQuestionResult(pin); }, q.time * 1000 + 500);
   }
@@ -226,7 +236,7 @@ io.on('connection', (socket) => {
     const q = room.questions[room.currentQ];
     const elapsed = (Date.now() - room.questionStartTime) / 1000;
     const timeLeft = Math.max(0, q.time - elapsed);
-    const isCorrect = answerIndex === q.correct;
+    const isCorrect = answerIndex === room.currentCorrect;
     const points = calcScore(isCorrect, timeLeft, q.time);
     player.score += points;
     player.answered = true;
@@ -246,7 +256,7 @@ io.on('connection', (socket) => {
     if (!room || room.state !== 'question') return;
     room.state = 'leaderboard';
     const q = room.questions[room.currentQ];
-    io.to(pin).emit('question_result', { correctIndex: q.correct, leaderboard: getLeaderboard(room.players), isLast: room.currentQ === room.questions.length - 1 });
+    io.to(pin).emit('question_result', { correctIndex: room.currentCorrect, leaderboard: getLeaderboard(room.players), isLast: room.currentQ === room.questions.length - 1 });
     setTimeout(() => { if (room.currentQ < room.questions.length - 1) sendQuestion(pin); else endGame(pin); }, 5000);
   }
 
