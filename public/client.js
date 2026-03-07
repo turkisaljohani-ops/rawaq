@@ -1,4 +1,5 @@
 
+
 /**
  * client.js — منطق العميل للعبة رواق
  * يدير: الاتصال، الشاشات، المؤقتات، الأصوات، والتأثيرات
@@ -422,4 +423,52 @@ window.addEventListener('load', () => {
 
 function escapeHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════════════
+//  نظام الفيدباك
+// ════════════════════════════════════════════════
+
+let currentRating = 0;
+const feedbackList = JSON.parse(localStorage.getItem('rawaq_feedback') || '[]');
+
+function setRating(val) {
+  currentRating = val;
+  document.querySelectorAll('.star').forEach((s, i) => {
+    s.classList.toggle('active', i < val);
+  });
+}
+
+const FEEDBACK_URL = 'https://script.google.com/macros/s/AKfycbywetkjkkaztUeBzKFE6IzyyNMe3Wxb3Vr_oIxRqEg_o6J8YhzbqSEMwYrsQJPCDg/exec';
+
+async function submitFeedback() {
+  const name   = document.getElementById('feedback-name').value.trim() || 'مجهول';
+  const text   = document.getElementById('feedback-text-input').value.trim();
+  const rating = currentRating;
+
+  if (!text)   return showToast('⚠️ اكتب رأيك أولاً');
+  if (!rating) return showToast('⚠️ اختر تقييمك');
+
+  showToast('⏳ جاري الإرسال...');
+
+  try {
+    await fetch(FEEDBACK_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, text, rating })
+    });
+
+    // إعادة ضبط الفورم
+    document.getElementById('feedback-name').value = '';
+    document.getElementById('feedback-text-input').value = '';
+    setRating(0);
+    currentRating = 0;
+
+    showToast('✅ شكراً على رأيك!');
+    setTimeout(() => showScreen('screen-home'), 1800);
+
+  } catch (err) {
+    showToast('❌ فشل الإرسال، تحقق من الاتصال');
+  }
 }
