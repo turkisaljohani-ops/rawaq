@@ -1,5 +1,4 @@
 
-
 /**
  * client.js — منطق العميل للعبة رواق
  * يدير: الاتصال، الشاشات، المؤقتات، الأصوات، والتأثيرات
@@ -439,7 +438,7 @@ function setRating(val) {
   });
 }
 
-const FEEDBACK_URL = 'https://script.google.com/macros/s/AKfycbywetkjkkaztUeBzKFE6IzyyNMe3Wxb3Vr_oIxRqEg_o6J8YhzbqSEMwYrsQJPCDg/exec';
+const FEEDBACK_URL = 'https://script.google.com/macros/s/AKfycbxDndpHEoNgSWeCRxSnBJLmCtJzmsca1DtgFe9rk6tdR9P7zTP-MZfDAq46plloqG0/exec';
 
 async function submitFeedback() {
   const name   = document.getElementById('feedback-name').value.trim() || 'مجهول';
