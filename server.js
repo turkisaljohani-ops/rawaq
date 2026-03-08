@@ -17,36 +17,74 @@ app.use(express.json());
 const GEMINI_KEY = 'AIzaSyAO1_PkqxXhPSnV1lQ4L8rGBFBjDcnwi_8';
 
 // ─── API توليد أسئلة AI ───────────────────────────────────
-app.post('/api/generate-quiz', async (req, res) => {
+app.post('/api/generate-quiz', (req, res) => {
   const { topic, difficulty, count } = req.body;
+  if (!topic) return res.status(400).json({ error: 'موضوع مطلوب' });
+
   const diffLabels = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
-
   const prompt = `أنت مختبر ذكي. أنشئ اختبار كويز باللغة العربية عن موضوع: "${topic}".
-
 المتطلبات:
-- ${count} أسئلة بمستوى ${diffLabels[difficulty] || 'متوسط'}
+- ${count || 5} أسئلة بمستوى ${diffLabels[difficulty] || 'متوسط'}
 - كل سؤال له 4 خيارات وإجابة صحيحة واحدة
-- تدرج في الصعوبة من سهل لصعب
+- تدرج في الصعوبة
 - أضف معلومة ممتعة قصيرة لكل سؤال
-
 أرجع JSON فقط بهذا الشكل بدون أي نص إضافي أو markdown:
-{
-  "questions": [
-    {
-      "text": "نص السؤال",
-      "options": ["خيار1", "خيار2", "خيار3", "خيار4"],
-      "correct": 0,
-      "difficulty": "easy",
-      "funfact": "معلومة ممتعة قصيرة عن الإجابة"
-    }
-  ]
-}`;
+{"questions":[{"text":"نص السؤال","options":["خيار1","خيار2","خيار3","خيار4"],"correct":0,"difficulty":"easy","funfact":"معلومة ممتعة"}]}`;
 
-  try {
-    const postData = JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+  const postData = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+  });
+
+  const https = require('https');
+  const options = {
+    hostname: 'generativelanguage.googleapis.com',
+    path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
+
+  let body = '';
+  const httpsReq = https.request(options, (r) => {
+    r.on('data', chunk => body += chunk);
+    r.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        console.log('Gemini status:', r.statusCode);
+        if (r.statusCode !== 200) {
+          console.error('Gemini error body:', body.substring(0, 300));
+          return res.status(500).json({ error: 'Gemini API error: ' + r.statusCode });
+        }
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (!text) return res.status(500).json({ error: 'رد فارغ من AI' });
+
+        const clean = text.replace(/```json|```/g, '').trim();
+        const match = clean.match(/{[\s\S]*}/);
+        if (!match) return res.status(500).json({ error: 'تنسيق خاطئ من AI' });
+
+        const parsed = JSON.parse(match[0]);
+        if (!parsed.questions || !parsed.questions.length) {
+          return res.status(500).json({ error: 'لم تُنشأ أسئلة' });
+        }
+        res.json(parsed);
+      } catch(e) {
+        console.error('Parse error:', e.message, body.substring(0, 200));
+        res.status(500).json({ error: 'خطأ في تحليل الرد: ' + e.message });
+      }
     });
+  });
+
+  httpsReq.on('error', (e) => {
+    console.error('HTTPS error:', e.message);
+    res.status(500).json({ error: 'خطأ في الاتصال: ' + e.message });
+  });
+
+  httpsReq.write(postData);
+  httpsReq.end();
+});
 
     const rawText = await new Promise((resolve, reject) => {
       const https = require('https');
@@ -62,8 +100,12 @@ app.post('/api/generate-quiz', async (req, res) => {
         r.on('end', () => {
           try {
             const data = JSON.parse(body);
-            resolve(data.candidates?.[0]?.content?.parts?.[0]?.text || '');
-          } catch(e) { reject(e); }
+            console.log('Gemini status:', r.statusCode);
+            console.log('Gemini response:', body.substring(0, 500));
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (!text) reject(new Error('Gemini returned empty: ' + body.substring(0, 300)));
+            else resolve(text);
+          } catch(e) { reject(new Error('Parse error: ' + body.substring(0, 200))); }
         });
       });
       httpsReq.on('error', reject);
