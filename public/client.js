@@ -536,27 +536,22 @@ async function generateAiQuiz() {
   ]
 }`;
 
-    const GEMINI_KEY = 'AIzaSyAO1_PkqxXhPSnV1lQ4L8rGBFBjDcnwi_8';
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
-        })
-      }
-    );
+    // الطلب يمر عبر الخادم لتجنب مشاكل CORS
+    const response = await fetch('/api/generate-quiz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic,
+        difficulty: aiDifficulty,
+        count: aiQuestionCount
+      })
+    });
 
-    const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!response.ok) throw new Error('فشل الاتصال بالخادم');
 
-    // استخراج JSON
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('تعذر تحليل الأسئلة');
+    const parsed = await response.json();
+    if (!parsed.questions) throw new Error('لم تُنشأ أسئلة');
 
-    const parsed = JSON.parse(jsonMatch[0]);
     aiGeneratedQuestions = parsed.questions;
     currentFunFacts = aiGeneratedQuestions.map(q => q.funfact || '');
 
