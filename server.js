@@ -14,7 +14,7 @@ const io = new Server(server, { cors: { origin: '*' }, pingTimeout: 10000, pingI
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const OPENROUTER_KEY = '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';
+const OPENROUTER_KEY = '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';
 
 // ─── API توليد أسئلة AI ───────────────────────────────────
 app.post('/api/generate-quiz', (req, res) => {
