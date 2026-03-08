@@ -38,8 +38,14 @@
             <span class="card-desc">أدخل الرمز وانضم للمتعة</span>
           </div>
         </button>
+        <button class="card-btn card-ai" onclick="showScreen('screen-ai')">
+          <span class="card-icon">🤖</span>
+          <div>
+            <span class="card-title">AI Quiz Master</span>
+            <span class="card-desc">أنشئ اختباراً بالذكاء الاصطناعي</span>
+          </div>
+        </button>
       </div>
-
       <div class="copyright">
         Developed by <span class="dev-name">LAMMATNA</span> ©2026
       </div>
@@ -95,6 +101,85 @@
     </div>
   </div>
 
+  <!-- ══ AI Quiz Master ══ -->
+  <div id="screen-ai" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showScreen('screen-home')">← رجوع</button>
+      <h2>🤖 AI Quiz Master</h2>
+    </div>
+
+    <!-- فورم الإنشاء -->
+    <div id="ai-form" class="form-card">
+      <div class="ai-badge">
+        <span class="ai-badge-dot"></span>
+        مدعوم بالذكاء الاصطناعي
+      </div>
+
+      <div class="input-group">
+        <label>موضوع الاختبار</label>
+        <input type="text" id="ai-topic" placeholder="مثال: الفضاء، التاريخ الإسلامي، الرياضيات..." maxlength="100" />
+      </div>
+
+      <div class="input-group">
+        <label>مستوى الصعوبة</label>
+        <div class="difficulty-picker">
+          <button class="diff-btn active" data-level="easy" onclick="setDifficulty('easy')">😊 سهل</button>
+          <button class="diff-btn" data-level="medium" onclick="setDifficulty('medium')">🔥 متوسط</button>
+          <button class="diff-btn" data-level="hard" onclick="setDifficulty('hard')">💀 صعب</button>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>عدد الأسئلة</label>
+        <div class="count-picker">
+          <button class="count-btn" onclick="changeAiCount(-1)">−</button>
+          <span id="ai-question-count">5</span>
+          <button class="count-btn" onclick="changeAiCount(1)">+</button>
+        </div>
+        <span class="count-hint">من 5 إلى 10 أسئلة</span>
+      </div>
+
+      <button class="btn-ai-generate" onclick="generateAiQuiz()">
+        <span class="btn-ai-icon">✨</span>
+        إنشاء الاختبار
+      </button>
+    </div>
+
+    <!-- تحميل -->
+    <div id="ai-loading" class="ai-loading hidden">
+      <div class="ai-loading-orb"></div>
+      <div class="ai-loading-text">يفكر الذكاء الاصطناعي...</div>
+      <div class="ai-loading-sub" id="ai-loading-sub">جاري إنشاء الأسئلة</div>
+      <div class="ai-progress">
+        <div class="ai-progress-bar" id="ai-progress-bar"></div>
+      </div>
+    </div>
+
+    <!-- معاينة الأسئلة -->
+    <div id="ai-preview" class="ai-preview hidden">
+      <div class="ai-preview-header">
+        <div>
+          <h3 id="ai-preview-title">اختبار: الفضاء</h3>
+          <span id="ai-preview-meta" class="ai-preview-meta"></span>
+        </div>
+        <div class="ai-preview-actions">
+          <button class="btn-regenerate" onclick="generateAiQuiz()">🔄 إعادة توليد</button>
+        </div>
+      </div>
+
+      <div id="ai-questions-list" class="ai-questions-list"></div>
+
+      <div class="ai-final-actions">
+        <div class="input-group">
+          <label>اسمك كمضيف</label>
+          <input type="text" id="ai-host-name" placeholder="مثال: أحمد" maxlength="20" />
+        </div>
+        <button class="btn-primary" onclick="startAiGame()">🚀 ابدأ اللعبة بهذه الأسئلة</button>
+        <button class="btn-skip" onclick="showScreen('screen-home')">← رجوع للرئيسية</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ══ Lobby ══ -->
   <div id="screen-lobby" class="screen">
     <div class="lobby-top">
@@ -140,6 +225,7 @@
       <h2 id="host-question-text" class="q-text"></h2>
     </div>
     <div class="host-options-grid" id="host-options"></div>
+    <div id="host-fun-fact" class="fun-fact hidden"></div>
   </div>
 
   <!-- ══ سؤال اللاعب ══ -->
@@ -157,21 +243,19 @@
       </div>
       <div id="player-score-display" class="score-display">نقاطك: 0</div>
     </div>
-
     <div id="player-question-box" class="player-question-box"></div>
-
     <div id="player-buttons" class="answer-buttons">
       <button class="answer-btn color-0" onclick="submitAnswer(0)"></button>
       <button class="answer-btn color-1" onclick="submitAnswer(1)"></button>
       <button class="answer-btn color-2" onclick="submitAnswer(2)"></button>
       <button class="answer-btn color-3" onclick="submitAnswer(3)"></button>
     </div>
-
     <div id="answer-feedback" class="answer-feedback hidden">
       <div class="feedback-icon" id="feedback-icon"></div>
       <div class="feedback-text" id="feedback-text"></div>
       <div class="feedback-points" id="feedback-points"></div>
       <div class="feedback-streak" id="feedback-streak"></div>
+      <div class="feedback-funfact" id="feedback-funfact"></div>
     </div>
   </div>
 
@@ -196,7 +280,7 @@
     <canvas id="confetti-canvas"></canvas>
   </div>
 
-  <!-- ══ شاشة الفيدباك ══ -->
+  <!-- ══ الفيدباك ══ -->
   <div id="screen-feedback" class="screen">
     <div class="screen-header">
       <button class="back-btn" onclick="showScreen('screen-end')">← رجوع</button>
