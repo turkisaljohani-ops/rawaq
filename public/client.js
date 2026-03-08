@@ -340,19 +340,7 @@ socket.on('answer_result', ({ isCorrect, points, score, streak }) => {
   }
 });
 
-socket.on('question_result', ({ correctIndex, leaderboard, isLast }) => {
-  clearTimers();
-
-  if (state.role === 'host') {
-    document.querySelectorAll('.host-option').forEach((opt, i) => {
-      if (i === correctIndex) opt.classList.add('correct');
-      else opt.style.opacity = '.35';
-    });
-    setTimeout(() => showLeaderboard(leaderboard, isLast), 1500);
-  } else {
-    showLeaderboard(leaderboard, isLast);
-  }
-});
+// question_result handled by AI section below
 
 function showLeaderboard(leaderboard, isLast) {
   showScreen('screen-leaderboard');
@@ -471,3 +459,232 @@ async function submitFeedback() {
     showToast('❌ فشل الإرسال، تحقق من الاتصال');
   }
 }
+
+// ════════════════════════════════════════════════
+//  🤖 AI Quiz Master
+// ════════════════════════════════════════════════
+
+let aiDifficulty = 'easy';
+let aiQuestionCount = 5;
+let aiGeneratedQuestions = [];
+let currentFunFacts = [];
+
+function setDifficulty(level) {
+  aiDifficulty = level;
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.level === level);
+  });
+}
+
+function changeAiCount(delta) {
+  aiQuestionCount = Math.min(10, Math.max(5, aiQuestionCount + delta));
+  document.getElementById('ai-question-count').textContent = aiQuestionCount;
+}
+
+// ── توليد الأسئلة عبر Claude API ─────────────────────────
+async function generateAiQuiz() {
+  const topic = document.getElementById('ai-topic').value.trim();
+  if (!topic) return showToast('⚠️ اكتب موضوع الاختبار أولاً');
+
+  const diffLabels = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
+
+  // إخفاء الفورم وإظهار التحميل
+  document.getElementById('ai-form').classList.add('hidden');
+  document.getElementById('ai-preview').classList.add('hidden');
+  document.getElementById('ai-loading').classList.remove('hidden');
+
+  // تحريك شريط التقدم
+  const loadingMessages = [
+    'جاري تحليل الموضوع...',
+    'إنشاء الأسئلة...',
+    'ضبط مستوى الصعوبة...',
+    'مراجعة الإجابات...',
+    'لمسات أخيرة...'
+  ];
+  let progress = 0;
+  let msgIndex = 0;
+  const progressBar = document.getElementById('ai-progress-bar');
+  const loadingSub = document.getElementById('ai-loading-sub');
+
+  const progressInterval = setInterval(() => {
+    progress = Math.min(progress + Math.random() * 15, 90);
+    progressBar.style.width = progress + '%';
+    if (msgIndex < loadingMessages.length - 1) {
+      loadingSub.textContent = loadingMessages[msgIndex++];
+    }
+  }, 600);
+
+  try {
+    const prompt = `أنت مختبر ذكي. أنشئ اختبار كويز باللغة العربية عن موضوع: "${topic}".
+
+المتطلبات:
+- ${aiQuestionCount} أسئلة بمستوى ${diffLabels[aiDifficulty]}
+- كل سؤال له 4 خيارات وإجابة صحيحة واحدة
+- تدرج في الصعوبة من سهل لصعب
+- أضف معلومة ممتعة قصيرة لكل سؤال
+
+أرجع JSON فقط بهذا الشكل بدون أي نص إضافي:
+{
+  "questions": [
+    {
+      "text": "نص السؤال",
+      "options": ["خيار1", "خيار2", "خيار3", "خيار4"],
+      "correct": 0,
+      "difficulty": "easy",
+      "funfact": "معلومة ممتعة قصيرة عن الإجابة"
+    }
+  ]
+}`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    const rawText = data.content?.[0]?.text || '';
+
+    // استخراج JSON
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('تعذر تحليل الأسئلة');
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    aiGeneratedQuestions = parsed.questions;
+    currentFunFacts = aiGeneratedQuestions.map(q => q.funfact || '');
+
+    // اكتمال التحميل
+    clearInterval(progressInterval);
+    progressBar.style.width = '100%';
+    await new Promise(r => setTimeout(r, 400));
+
+    document.getElementById('ai-loading').classList.add('hidden');
+    renderAiPreview(topic);
+
+  } catch (err) {
+    clearInterval(progressInterval);
+    document.getElementById('ai-loading').classList.add('hidden');
+    document.getElementById('ai-form').classList.remove('hidden');
+    showToast('❌ فشل إنشاء الأسئلة، حاول مجدداً');
+    console.error(err);
+  }
+}
+
+// ── عرض الأسئلة المولّدة ─────────────────────────────────
+function renderAiPreview(topic) {
+  document.getElementById('ai-preview').classList.remove('hidden');
+  document.getElementById('ai-preview-title').textContent = `اختبار: ${topic}`;
+  document.getElementById('ai-preview-meta').textContent =
+    `${aiGeneratedQuestions.length} سؤال • ${aiDifficulty === 'easy' ? 'سهل' : aiDifficulty === 'medium' ? 'متوسط' : 'صعب'}`;
+
+  const diffClass = { easy: 'diff-easy', medium: 'diff-medium', hard: 'diff-hard' };
+  const diffLabel = { easy: '😊 سهل', medium: '🔥 متوسط', hard: '💀 صعب' };
+  const shapes = ['▲', '■', '●', '★'];
+
+  const list = document.getElementById('ai-questions-list');
+  list.innerHTML = aiGeneratedQuestions.map((q, qi) => `
+    <div class="ai-question-card">
+      <div class="ai-q-diff ${diffClass[q.difficulty] || diffClass.easy}">
+        ${diffLabel[q.difficulty] || diffLabel.easy}
+      </div>
+      <div class="ai-q-header">
+        <div class="ai-q-num">${qi + 1}</div>
+        <textarea class="ai-q-text-edit" id="q-text-${qi}" rows="2">${escapeHtml(q.text)}</textarea>
+      </div>
+      <div class="ai-options-grid">
+        ${q.options.map((opt, oi) => `
+          <label class="ai-option ${oi === q.correct ? 'correct' : ''}">
+            <input type="radio" name="correct-${qi}" value="${oi}" ${oi === q.correct ? 'checked' : ''}
+              onchange="updateCorrect(${qi}, ${oi})">
+            <span style="color:var(--muted);font-size:.8rem">${shapes[oi]}</span>
+            <input class="ai-option-text" id="q-opt-${qi}-${oi}" value="${escapeHtml(opt)}"
+              oninput="updateOption(${qi},${oi},this.value)">
+          </label>
+        `).join('')}
+      </div>
+      ${q.funfact ? `<div class="ai-q-funfact">${escapeHtml(q.funfact)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ── تحديث الإجابة الصحيحة ────────────────────────────────
+function updateCorrect(qIndex, optIndex) {
+  aiGeneratedQuestions[qIndex].correct = optIndex;
+  // تحديث التظليل
+  const card = document.querySelectorAll('.ai-question-card')[qIndex];
+  card.querySelectorAll('.ai-option').forEach((el, i) => {
+    el.classList.toggle('correct', i === optIndex);
+  });
+}
+
+// ── تحديث نص الخيار ──────────────────────────────────────
+function updateOption(qIndex, optIndex, value) {
+  aiGeneratedQuestions[qIndex].options[optIndex] = value;
+}
+
+// ── بدء اللعبة بأسئلة AI ─────────────────────────────────
+function startAiGame() {
+  const hostName = document.getElementById('ai-host-name').value.trim();
+  if (!hostName) return showToast('⚠️ أدخل اسمك أولاً');
+  if (aiGeneratedQuestions.length === 0) return showToast('⚠️ لا توجد أسئلة');
+
+  // جمع الأسئلة المعدّلة من الواجهة
+  const finalQuestions = aiGeneratedQuestions.map((q, qi) => {
+    const text = document.getElementById(`q-text-${qi}`)?.value || q.text;
+    const options = q.options.map((_, oi) =>
+      document.getElementById(`q-opt-${qi}-${oi}`)?.value || q.options[oi]
+    );
+    return {
+      text,
+      options,
+      correct: q.correct,
+      time: q.difficulty === 'hard' ? 20 : q.difficulty === 'medium' ? 15 : 12,
+      funfact: q.funfact || ''
+    };
+  });
+
+  // إرسال للسيرفر
+  socket.emit('create_room', {
+    hostName,
+    customQuestions: finalQuestions,
+    questionCount: finalQuestions.length
+  }, (res) => {
+    if (!res.success) return showToast('❌ حدث خطأ');
+    state.role = 'host';
+    state.pin = res.pin;
+    state.name = hostName;
+    state.funFacts = finalQuestions.map(q => q.funfact || '');
+    setupLobby(res.pin, 'host');
+    showScreen('screen-lobby');
+  });
+}
+
+// ── عرض المعلومة الممتعة للاعب ───────────────────────────
+socket.on('show_funfact', ({ funfact }) => {
+  const el = document.getElementById('feedback-funfact');
+  if (el && funfact) el.textContent = funfact;
+});
+
+socket.on('question_result', ({ correctIndex, leaderboard, isLast, funfact }) => {
+  clearTimers();
+
+  // عرض المعلومة الممتعة للمضيف
+  if (state.role === 'host') {
+    const ffEl = document.getElementById('host-fun-fact');
+    if (ffEl && funfact) {
+      ffEl.textContent = funfact;
+      ffEl.classList.remove('hidden');
+    }
+    document.querySelectorAll('.host-option').forEach((opt, i) => {
+      if (i === correctIndex) opt.classList.add('correct');
+      else opt.style.opacity = '.35';
+    });
+    setTimeout(() => showLeaderboard(leaderboard, isLast), 1500);
+  } else {
+    showLeaderboard(leaderboard, isLast);
+  }
+});
