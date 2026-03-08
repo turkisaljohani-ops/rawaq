@@ -14,7 +14,7 @@ const io = new Server(server, { cors: { origin: '*' }, pingTimeout: 10000, pingI
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const GEMINI_KEY = 'AIzaSyA0zdr6fhg6_gYxM1yGmRBR2LKHCklLyBo';
+const OPENROUTER_KEY = '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';
 
 // ─── API توليد أسئلة AI ───────────────────────────────────
 app.post('/api/generate-quiz', (req, res) => {
@@ -32,17 +32,22 @@ app.post('/api/generate-quiz', (req, res) => {
 {"questions":[{"text":"نص السؤال","options":["خيار1","خيار2","خيار3","خيار4"],"correct":0,"difficulty":"easy","funfact":"معلومة ممتعة"}]}`;
 
   const postData = JSON.stringify({
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+    model: 'meta-llama/llama-3.3-8b-instruct:free',
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: 2000,
+    temperature: 0.7
   });
 
   const https = require('https');
   const options = {
-    hostname: 'generativelanguage.googleapis.com',
-    path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+    hostname: 'openrouter.ai',
+    path: '/api/v1/chat/completions',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENROUTER_KEY}`,
+      'HTTP-Referer': 'https://rawaq-production.up.railway.app',
+      'X-Title': 'Rawaq Quiz Game',
       'Content-Length': Buffer.byteLength(postData)
     }
   };
@@ -53,12 +58,12 @@ app.post('/api/generate-quiz', (req, res) => {
     r.on('end', () => {
       try {
         const data = JSON.parse(body);
-        console.log('Gemini status:', r.statusCode);
+        console.log('OpenRouter status:', r.statusCode);
         if (r.statusCode !== 200) {
-          console.error('Gemini error body:', body.substring(0, 300));
-          return res.status(500).json({ error: 'Gemini API error: ' + r.statusCode });
+          console.error('OpenRouter error:', body.substring(0, 300));
+          return res.status(500).json({ error: 'AI error: ' + r.statusCode });
         }
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const text = data.choices?.[0]?.message?.content || '';
         if (!text) return res.status(500).json({ error: 'رد فارغ من AI' });
 
         const clean = text.replace(/```json|```/g, '').trim();
