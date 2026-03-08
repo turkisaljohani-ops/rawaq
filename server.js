@@ -86,45 +86,6 @@ app.post('/api/generate-quiz', (req, res) => {
   httpsReq.end();
 });
 
-    const rawText = await new Promise((resolve, reject) => {
-      const https = require('https');
-      const options = {
-        hostname: 'generativelanguage.googleapis.com',
-        path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) }
-      };
-      const httpsReq = https.request(options, (r) => {
-        let body = '';
-        r.on('data', chunk => body += chunk);
-        r.on('end', () => {
-          try {
-            const data = JSON.parse(body);
-            console.log('Gemini status:', r.statusCode);
-            console.log('Gemini response:', body.substring(0, 500));
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            if (!text) reject(new Error('Gemini returned empty: ' + body.substring(0, 300)));
-            else resolve(text);
-          } catch(e) { reject(new Error('Parse error: ' + body.substring(0, 200))); }
-        });
-      });
-      httpsReq.on('error', reject);
-      httpsReq.write(postData);
-      httpsReq.end();
-    });
-
-    const clean = rawText.replace(/```json|```/g, '').trim();
-    const jsonMatch = clean.match(/{[\s\S]*}/);
-    if (!jsonMatch) return res.status(500).json({ error: 'تعذر تحليل الأسئلة' });
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    res.json(parsed);
-
-  } catch (err) {
-    console.error('Gemini error:', err.message || err);
-    res.status(500).json({ error: err.message || 'فشل الاتصال بـ AI' });
-  }
-});
 
 // ─── بنك الأسئلة المصنّفة ─────────────────────────────────
 const QUESTION_BANK = {
