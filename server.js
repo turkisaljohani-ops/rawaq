@@ -3,6 +3,7 @@
  */
 
 const express = require('express');
+const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
@@ -12,6 +13,65 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' }, pingTimeout: 10000, pingInterval: 5000 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+
+const GEMINI_KEY = 'AIzaSyAO1_PkqxXhPSnV1lQ4L8rGBFBjDcnwi_8';
+
+// ─── API توليد أسئلة AI ───────────────────────────────────
+app.post('/api/generate-quiz', async (req, res) => {
+  const { topic, difficulty, count } = req.body;
+  const diffLabels = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
+
+  const prompt = `أنت مختبر ذكي. أنشئ اختبار كويز باللغة العربية عن موضوع: "${topic}".
+
+المتطلبات:
+- ${count} أسئلة بمستوى ${diffLabels[difficulty] || 'متوسط'}
+- كل سؤال له 4 خيارات وإجابة صحيحة واحدة
+- تدرج في الصعوبة من سهل لصعب
+- أضف معلومة ممتعة قصيرة لكل سؤال
+
+أرجع JSON فقط بهذا الشكل بدون أي نص إضافي أو markdown:
+{
+  "questions": [
+    {
+      "text": "نص السؤال",
+      "options": ["خيار1", "خيار2", "خيار3", "خيار4"],
+      "correct": 0,
+      "difficulty": "easy",
+      "funfact": "معلومة ممتعة قصيرة عن الإجابة"
+    }
+  ]
+}`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+        })
+      }
+    );
+
+    const data = await response.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    // تنظيف الرد من markdown
+    const clean = rawText.replace(/```json|```/g, '').trim();
+    const jsonMatch = clean.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(500).json({ error: 'تعذر تحليل الأسئلة' });
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    res.json(parsed);
+
+  } catch (err) {
+    console.error('Gemini error:', err);
+    res.status(500).json({ error: 'فشل الاتصال بـ AI' });
+  }
+});
 
 // ─── بنك الأسئلة المصنّفة ─────────────────────────────────
 const QUESTION_BANK = {
