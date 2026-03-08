@@ -3,7 +3,6 @@
  */
 
 const express = require('express');
-const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
@@ -44,24 +43,36 @@ app.post('/api/generate-quiz', async (req, res) => {
 }`;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-      {
+    const postData = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+    });
+
+    const rawText = await new Promise((resolve, reject) => {
+      const https = require('https');
+      const options = {
+        hostname: 'generativelanguage.googleapis.com',
+        path: `/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
-        })
-      }
-    );
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) }
+      };
+      const req = https.request(options, (r) => {
+        let body = '';
+        r.on('data', chunk => body += chunk);
+        r.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            resolve(data.candidates?.[0]?.content?.parts?.[0]?.text || '');
+          } catch(e) { reject(e); }
+        });
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
 
-    const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    // تنظيف الرد من markdown
     const clean = rawText.replace(/```json|```/g, '').trim();
-    const jsonMatch = clean.match(/\{[\s\S]*\}/);
+    const jsonMatch = clean.match(/{[\s\S]*}/);
     if (!jsonMatch) return res.status(500).json({ error: 'تعذر تحليل الأسئلة' });
 
     const parsed = JSON.parse(jsonMatch[0]);
