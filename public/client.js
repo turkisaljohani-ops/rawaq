@@ -1,4 +1,6 @@
 
+
+
 /**
  * client.js — منطق العميل للعبة رواق
  * يدير: الاتصال، الشاشات، المؤقتات، الأصوات، والتأثيرات
@@ -553,6 +555,13 @@ async function generateAiQuiz() {
 
     aiGeneratedQuestions = parsed.questions;
     currentFunFacts = aiGeneratedQuestions.map(q => q.funfact || '');
+
+    // عرض شارة التحقق
+    const verifiedBadge = parsed.verified
+      ? '<span class="verified-badge">✅ تم التحقق من الدقة</span>'
+      : '<span class="unverified-badge">⚠️ راجع الأسئلة قبل اللعب</span>';
+    document.getElementById('ai-preview-meta').innerHTML =
+      `${aiGeneratedQuestions.length} سؤال • ${aiDifficulty === 'easy' ? 'سهل' : aiDifficulty === 'medium' ? 'متوسط' : 'صعب'} ${verifiedBadge}`;
 
     // اكتمال التحميل
     clearInterval(progressInterval);
