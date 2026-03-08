@@ -14,7 +14,7 @@ const io = new Server(server, { cors: { origin: '*' }, pingTimeout: 10000, pingI
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const GEMINI_KEY = 'AIzaSyAO1_PkqxXhPSnV1lQ4L8rGBFBjDcnwi_8';
+const GEMINI_KEY = 'AIzaSyA0zdr6fhg6_gYxM1yGmRBR2LKHCklLyBo';
 
 // ─── API توليد أسئلة AI ───────────────────────────────────
 app.post('/api/generate-quiz', (req, res) => {
