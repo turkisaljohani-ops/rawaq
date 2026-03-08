@@ -14,7 +14,7 @@ const io = new Server(server, { cors: { origin: '*' }, pingTimeout: 10000, pingI
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const OPENROUTER_KEY = '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';
+const GROQ_KEY = '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';
 
 // ─── API توليد أسئلة AI ───────────────────────────────────
 app.post('/api/generate-quiz', (req, res) => {
@@ -32,7 +32,7 @@ app.post('/api/generate-quiz', (req, res) => {
 {"questions":[{"text":"نص السؤال","options":["خيار1","خيار2","خيار3","خيار4"],"correct":0,"difficulty":"easy","funfact":"معلومة ممتعة"}]}`;
 
   const postData = JSON.stringify({
-    model: 'meta-llama/llama-3.3-8b-instruct:free',
+    model: 'llama-3.3-70b-versatile',
     messages: [{ role: 'user', content: prompt }],
     max_tokens: 2000,
     temperature: 0.7
@@ -40,14 +40,12 @@ app.post('/api/generate-quiz', (req, res) => {
 
   const https = require('https');
   const options = {
-    hostname: 'openrouter.ai',
-    path: '/api/v1/chat/completions',
+    hostname: 'api.groq.com',
+    path: '/openai/v1/chat/completions',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENROUTER_KEY}`,
-      'HTTP-Referer': 'https://rawaq-production.up.railway.app',
-      'X-Title': 'Rawaq Quiz Game',
+      'Authorization': `Bearer ${GROQ_KEY}`,
       'Content-Length': Buffer.byteLength(postData)
     }
   };
