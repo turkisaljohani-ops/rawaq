@@ -547,10 +547,9 @@ async function generateAiQuiz() {
       })
     });
 
-    if (!response.ok) throw new Error('فشل الاتصال بالخادم');
-
     const parsed = await response.json();
-    if (!parsed.questions) throw new Error('لم تُنشأ أسئلة');
+    if (!response.ok) throw new Error(parsed.error || 'فشل الاتصال بالخادم');
+    if (!parsed.questions || !parsed.questions.length) throw new Error('لم تُنشأ أسئلة');
 
     aiGeneratedQuestions = parsed.questions;
     currentFunFacts = aiGeneratedQuestions.map(q => q.funfact || '');
