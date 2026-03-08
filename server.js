@@ -16,33 +16,90 @@ app.use(express.json());
 
 const GROQ_KEY = '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';
 
-// ─── API توليد أسئلة AI ───────────────────────────────────
+// ─── API توليد أسئلة AI (نظام التحقق المزدوج) ──────────────
 app.post('/api/generate-quiz', (req, res) => {
   const { topic, difficulty, count } = req.body;
   if (!topic) return res.status(400).json({ error: 'موضوع مطلوب' });
 
   const diffLabels = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
-  const prompt = `أنت مختبر أسئلة متخصص ودقيق. مهمتك إنشاء اختبار كويز باللغة العربية عن: "${topic}".
+  const num = parseInt(count) || 5;
 
-قواعد صارمة يجب الالتزام بها:
-1. الأسئلة والإجابات يجب أن تكون صحيحة 100% ومتحقق منها
-2. لا تضع معلومات قديمة أو غير مؤكدة
-3. الإجابة الصحيحة يجب أن تكون واضحة ولا جدال فيها
-4. تجنب الأسئلة التي قد تتغير إجاباتها مع الوقت مثل أسعار أو سجلات رياضية
-5. ركز على الحقائق الثابتة العلمية والتاريخية والجغرافية
-6. المستوى المطلوب: ${diffLabels[difficulty] || 'متوسط'}
-7. عدد الأسئلة: ${count || 5}
-8. تدرج في الصعوبة من سهل لصعب
-9. أضف معلومة ممتعة وصحيحة لكل سؤال
+  // ── المرحلة الأولى: توليد الأسئلة ────────────────────────
+  const generationPrompt = `أنت مختبر أسئلة متخصص. أنشئ ${num} أسئلة كويز باللغة العربية عن موضوع: "${topic}".
 
-أرجع JSON فقط بهذا الشكل بدون أي نص إضافي أو markdown:
-{"questions":[{"text":"نص السؤال","options":["خيار1","خيار2","خيار3","خيار4"],"correct":0,"difficulty":"easy","funfact":"معلومة ممتعة وصحيحة"}]}`;
+قواعد صارمة:
+- استخدم فقط حقائق علمية وتاريخية وجغرافية ثابتة ومعروفة
+- كل سؤال له إجابة صحيحة واحدة واضحة لا جدال فيها
+- الخيارات الخاطئة يجب أن تكون خاطئة بوضوح
+- تجنب الأسئلة التي تتغير إجاباتها مع الوقت
+- المستوى: ${diffLabels[difficulty] || 'متوسط'}
+- أضف شرحاً علمياً موجزاً يثبت صحة الإجابة
 
+أرجع JSON فقط بدون أي نص أو markdown:
+{"questions":[{"text":"السؤال","options":["أ","ب","ج","د"],"correct":0,"difficulty":"easy","funfact":"شرح يثبت صحة الإجابة"}]}`;
+
+  callGroq(generationPrompt, (err, generatedText) => {
+    if (err) return res.status(500).json({ error: 'خطأ في توليد الأسئلة: ' + err });
+
+    let questions;
+    try {
+      const clean = generatedText.replace(/` + "```" + `json|` + "```" + `/g, '').trim();
+      const match = clean.match(/\{[\s\S]*\}/);
+      if (!match) return res.status(500).json({ error: 'تنسيق خاطئ من AI' });
+      questions = JSON.parse(match[0]).questions;
+      if (!questions || !questions.length) return res.status(500).json({ error: 'لم تُنشأ أسئلة' });
+    } catch(e) {
+      return res.status(500).json({ error: 'خطأ في تحليل الأسئلة: ' + e.message });
+    }
+
+    // ── المرحلة الثانية: التحقق من صحة الأسئلة ──────────────
+    const verifyPrompt = `أنت مدقق علمي متخصص. راجع هذه الأسئلة وتحقق من دقتها العلمية.
+
+الأسئلة:
+${questions.map((q, i) => `${i+1}. السؤال: ${q.text}
+   الخيارات: ${q.options.join(' | ')}
+   الإجابة المختارة (رقم ${q.correct}): ${q.options[q.correct]}
+   الشرح: ${q.funfact}`).join('\n\n')}
+
+لكل سؤال:
+- إذا كانت الإجابة صحيحة علمياً: أبقِ السؤال كما هو
+- إذا كانت الإجابة خاطئة: صحح رقم الإجابة الصحيحة وحدّث الشرح
+- إذا كان السؤال غامضاً أو يحتمل أكثر من تفسير: استبدله بسؤال آخر عن نفس الموضوع
+
+أرجع JSON فقط بنفس التنسيق بدون أي نص أو markdown:
+{"questions":[{"text":"السؤال","options":["أ","ب","ج","د"],"correct":0,"difficulty":"easy","funfact":"شرح محدّث"}]}`;
+
+    callGroq(verifyPrompt, (err2, verifiedText) => {
+      if (err2) {
+        // إذا فشل التحقق أرجع الأسئلة الأصلية
+        console.log('Verification failed, returning original questions');
+        return res.json({ questions, verified: false });
+      }
+
+      try {
+        const clean2 = verifiedText.replace(/` + "```" + `json|` + "```" + `/g, '').trim();
+        const match2 = clean2.match(/\{[\s\S]*\}/);
+        if (!match2) return res.json({ questions, verified: false });
+
+        const verified = JSON.parse(match2[0]).questions;
+        if (!verified || !verified.length) return res.json({ questions, verified: false });
+
+        console.log(`✅ Generated ${questions.length} questions, verified ${verified.length}`);
+        res.json({ questions: verified, verified: true });
+      } catch(e) {
+        res.json({ questions, verified: false });
+      }
+    });
+  });
+});
+
+// ── دالة مساعدة لاستدعاء Groq ────────────────────────────
+function callGroq(prompt, callback) {
   const postData = JSON.stringify({
     model: 'llama-3.3-70b-versatile',
     messages: [{ role: 'user', content: prompt }],
-    max_tokens: 2000,
-    temperature: 0.7
+    max_tokens: 3000,
+    temperature: 0.3
   });
 
   const https = require('https');
@@ -63,38 +120,23 @@ app.post('/api/generate-quiz', (req, res) => {
     r.on('end', () => {
       try {
         const data = JSON.parse(body);
-        console.log('OpenRouter status:', r.statusCode);
+        console.log('Groq status:', r.statusCode);
         if (r.statusCode !== 200) {
-          console.error('OpenRouter error:', body.substring(0, 300));
-          return res.status(500).json({ error: 'AI error: ' + r.statusCode });
+          return callback('Groq error ' + r.statusCode + ': ' + body.substring(0, 200));
         }
         const text = data.choices?.[0]?.message?.content || '';
-        if (!text) return res.status(500).json({ error: 'رد فارغ من AI' });
-
-        const clean = text.replace(/```json|```/g, '').trim();
-        const match = clean.match(/{[\s\S]*}/);
-        if (!match) return res.status(500).json({ error: 'تنسيق خاطئ من AI' });
-
-        const parsed = JSON.parse(match[0]);
-        if (!parsed.questions || !parsed.questions.length) {
-          return res.status(500).json({ error: 'لم تُنشأ أسئلة' });
-        }
-        res.json(parsed);
+        if (!text) return callback('رد فارغ من Groq');
+        callback(null, text);
       } catch(e) {
-        console.error('Parse error:', e.message, body.substring(0, 200));
-        res.status(500).json({ error: 'خطأ في تحليل الرد: ' + e.message });
+        callback('Parse error: ' + e.message);
       }
     });
   });
 
-  httpsReq.on('error', (e) => {
-    console.error('HTTPS error:', e.message);
-    res.status(500).json({ error: 'خطأ في الاتصال: ' + e.message });
-  });
-
+  httpsReq.on('error', (e) => callback('HTTPS error: ' + e.message));
   httpsReq.write(postData);
   httpsReq.end();
-});
+}
 
 
 // ─── بنك الأسئلة المصنّفة ─────────────────────────────────
