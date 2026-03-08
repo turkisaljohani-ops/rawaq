@@ -164,14 +164,20 @@ app.get('/api/categories', (req, res) => {
 
 io.on('connection', (socket) => {
 
-  socket.on('create_room', ({ hostName, category, questionCount }, callback) => {
+  socket.on('create_room', ({ hostName, category, questionCount, customQuestions }, callback) => {
     const pin = generatePIN();
-    let pool = category && QUESTION_BANK[category]
-      ? [...QUESTION_BANK[category].questions]
-      : Object.values(QUESTION_BANK).flatMap(c => c.questions);
-    pool = pool.sort(() => Math.random() - 0.5);
-    const count = Math.min(Math.max(parseInt(questionCount) || 5, 3), 20);
-    const qs = pool.slice(0, count).map((q, i) => ({ ...q, id: i + 1 }));
+    let qs;
+    if (customQuestions && customQuestions.length > 0) {
+      // أسئلة AI مخصصة
+      qs = customQuestions.map((q, i) => ({ ...q, id: i + 1 }));
+    } else {
+      let pool = category && QUESTION_BANK[category]
+        ? [...QUESTION_BANK[category].questions]
+        : Object.values(QUESTION_BANK).flatMap(c => c.questions);
+      pool = pool.sort(() => Math.random() - 0.5);
+      const count = Math.min(Math.max(parseInt(questionCount) || 5, 3), 20);
+      qs = pool.slice(0, count).map((q, i) => ({ ...q, id: i + 1 }));
+    }
 
     rooms[pin] = { pin, hostId: socket.id, hostName, players: {}, questions: qs, state: 'lobby', currentQ: -1, answeredCount: 0, timer: null };
     socket.join(pin);
@@ -256,7 +262,13 @@ io.on('connection', (socket) => {
     if (!room || room.state !== 'question') return;
     room.state = 'leaderboard';
     const q = room.questions[room.currentQ];
-    io.to(pin).emit('question_result', { correctIndex: room.currentCorrect, leaderboard: getLeaderboard(room.players), isLast: room.currentQ === room.questions.length - 1 });
+    const currentQ = room.questions[room.currentQ];
+    io.to(pin).emit('question_result', {
+      correctIndex: room.currentCorrect,
+      leaderboard: getLeaderboard(room.players),
+      isLast: room.currentQ === room.questions.length - 1,
+      funfact: currentQ.funfact || ''
+    });
     setTimeout(() => { if (room.currentQ < room.questions.length - 1) sendQuestion(pin); else endGame(pin); }, 5000);
   }
 
