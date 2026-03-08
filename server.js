@@ -1,3 +1,4 @@
+
 /**
  * server.js — الخادم الرئيسي للعبة رواق
  */
@@ -43,12 +44,19 @@ app.post('/api/generate-quiz', (req, res) => {
 
     let questions;
     try {
-      const clean = generatedText.replace(/` + "```" + `json|` + "```" + `/g, '').trim();
-      const match = clean.match(/\{[\s\S]*\}/);
-      if (!match) return res.status(500).json({ error: 'تنسيق خاطئ من AI' });
-      questions = JSON.parse(match[0]).questions;
+      // تنظيف الرد من كل ما ليس JSON
+      let clean = generatedText
+        .replace(/```json/g, '').replace(/```/g, '')
+        .trim();
+      // استخراج أول { حتى آخر }
+      const start = clean.indexOf('{');
+      const end = clean.lastIndexOf('}');
+      if (start === -1 || end === -1) return res.status(500).json({ error: 'لم يُرجع AI صيغة JSON' });
+      const jsonStr = clean.slice(start, end + 1);
+      questions = JSON.parse(jsonStr).questions;
       if (!questions || !questions.length) return res.status(500).json({ error: 'لم تُنشأ أسئلة' });
     } catch(e) {
+      console.error('Parse error:', e.message);
       return res.status(500).json({ error: 'خطأ في تحليل الأسئلة: ' + e.message });
     }
 
