@@ -56,7 +56,7 @@ app.post('/api/generate-quiz', async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) }
       };
-      const req = https.request(options, (r) => {
+      const httpsReq = https.request(options, (r) => {
         let body = '';
         r.on('data', chunk => body += chunk);
         r.on('end', () => {
@@ -66,9 +66,9 @@ app.post('/api/generate-quiz', async (req, res) => {
           } catch(e) { reject(e); }
         });
       });
-      req.on('error', reject);
-      req.write(postData);
-      req.end();
+      httpsReq.on('error', reject);
+      httpsReq.write(postData);
+      httpsReq.end();
     });
 
     const clean = rawText.replace(/```json|```/g, '').trim();
@@ -79,8 +79,8 @@ app.post('/api/generate-quiz', async (req, res) => {
     res.json(parsed);
 
   } catch (err) {
-    console.error('Gemini error:', err);
-    res.status(500).json({ error: 'فشل الاتصال بـ AI' });
+    console.error('Gemini error:', err.message || err);
+    res.status(500).json({ error: err.message || 'فشل الاتصال بـ AI' });
   }
 });
 
